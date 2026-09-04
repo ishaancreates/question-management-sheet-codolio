@@ -1,6 +1,4 @@
-const SHEET_URL =
-  import.meta.env.VITE_SHEET_API_URL ??
-  "https://node.codolio.com/api/question-tracker/v1/sheet/public/get-sheet-by-slug/striver-sde-sheet";
+const SHEET_URL = import.meta.env.VITE_SHEET_API_URL;
 
 const fallbackSheet = [
   {
