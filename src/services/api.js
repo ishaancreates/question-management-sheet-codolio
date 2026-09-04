@@ -1,58 +1,27 @@
-const initialSheet = [
+const SHEET_URL =
+  import.meta.env.VITE_SHEET_API_URL ??
+  "https://node.codolio.com/api/question-tracker/v1/sheet/public/get-sheet-by-slug/striver-sde-sheet";
+
+const fallbackSheet = [
   {
-    id: "javascript",
-    title: "JavaScript",
-    description: "Core language concepts and browser fundamentals",
-    color: "#f2b84b",
-    subtopics: [
+    id: "topic-1",
+    title: "Arrays & Hashing",
+    subTopics: [
       {
-        id: "js-basics",
-        title: "Language basics",
+        id: "sub-1",
+        title: "Basic Operations",
         questions: [
           {
-            id: "js-1",
-            text: "What is the difference between let, const, and var?",
-            status: "todo",
+            id: "q-1",
+            title: "Two Sum",
+            url: "https://leetcode.com/problems/two-sum/",
+            difficulty: "Easy",
           },
           {
-            id: "js-2",
-            text: "Explain how closures work in JavaScript.",
-            status: "review",
-          },
-        ],
-      },
-      {
-        id: "js-async",
-        title: "Asynchronous JavaScript",
-        questions: [
-          {
-            id: "js-3",
-            text: "How does the event loop handle promises?",
-            status: "done",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "react",
-    title: "React",
-    description: "Components, state, and rendering patterns",
-    color: "#61c5d6",
-    subtopics: [
-      {
-        id: "react-core",
-        title: "Core concepts",
-        questions: [
-          {
-            id: "react-1",
-            text: "When should you use a controlled component?",
-            status: "todo",
-          },
-          {
-            id: "react-2",
-            text: "What causes a React component to re-render?",
-            status: "review",
+            id: "q-2",
+            title: "Valid Anagram",
+            url: "https://leetcode.com/problems/valid-anagram/",
+            difficulty: "Easy",
           },
         ],
       },
@@ -60,7 +29,287 @@ const initialSheet = [
   },
 ];
 
-export async function fetchSheet() {
-  await new Promise((resolve) => setTimeout(resolve, 250));
-  return structuredClone(initialSheet);
+let localSheet = structuredClone(fallbackSheet);
+
+const clone = (value) => structuredClone(value);
+
+const isYoutubeUrl = (value) =>
+  typeof value === "string" && /(?:youtube\.com|youtu\.be)/i.test(value);
+
+function getRemoteQuestions(payload) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  return payload?.data?.questions ?? payload?.data?.sheet?.questions ?? [];
+}
+
+function slugify(value) {
+  return String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/\W+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function normalizeRemoteSheet(payload) {
+  const topics = new Map();
+
+  const questions = getRemoteQuestions(payload);
+
+  questions.forEach((item, index) => {
+    const question = item?.questionId ?? item ?? {};
+
+    const topicTitle = item?.topic ?? "Uncategorized";
+    const subTopicTitle = item?.subTopic ?? "General";
+
+    const topicId = `topic-${slugify(topicTitle)}`;
+    const subTopicId = `${topicId}-sub-${slugify(subTopicTitle)}`;
+
+    let topic = topics.get(topicId);
+
+    if (!topic) {
+      topic = {
+        id: topicId,
+        title: topicTitle,
+        subTopics: [],
+      };
+
+      topics.set(topicId, topic);
+    }
+
+    let subTopic = topic.subTopics.find(
+      (subTopic) => subTopic.id === subTopicId,
+    );
+
+    if (!subTopic) {
+      subTopic = {
+        id: subTopicId,
+        title: subTopicTitle,
+        questions: [],
+      };
+
+      topic.subTopics.push(subTopic);
+    }
+
+    subTopic.questions.push({
+      id: item?._id ?? question?.id ?? `question-${index}`,
+
+      title: item?.title ?? question?.name ?? "Untitled question",
+
+      leetcodeUrl: question?.problemUrl ?? item?.problemUrl ?? "#",
+
+      youtubeUrl: isYoutubeUrl(item?.resource) ? item.resource : null,
+
+      difficulty: question?.difficulty ?? item?.difficulty ?? "Medium",
+    });
+  });
+
+  return Array.from(topics.values());
+}
+
+export default async function fetchSheet() {
+  try {
+    const response = await fetch(SHEET_URL);
+
+    if (!response.ok) {
+      throw new Error(`Sheet request failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+
+    const remoteSheet = normalizeRemoteSheet(payload);
+
+    if (remoteSheet.length > 0) {
+      localSheet = remoteSheet;
+    }
+
+    return clone(localSheet);
+  } catch (error) {
+    console.error("Failed to fetch sheet:", error);
+
+    return clone(localSheet);
+  }
+}
+
+export async function createTopic(title) {
+  localSheet = [
+    ...localSheet,
+    {
+      id: `topic-${crypto.randomUUID()}`,
+      title,
+      subTopics: [],
+    },
+  ];
+
+  return clone(localSheet);
+}
+
+export async function updateTopic(topicId, changes) {
+  localSheet = localSheet.map((topic) =>
+    topic.id === topicId
+      ? {
+          ...topic,
+          ...changes,
+        }
+      : topic,
+  );
+
+  return clone(localSheet);
+}
+
+export async function deleteTopic(topicId) {
+  localSheet = localSheet.filter((topic) => topic.id !== topicId);
+
+  return clone(localSheet);
+}
+
+export async function createSubTopic(topicId, title) {
+  localSheet = localSheet.map((topic) => {
+    if (topic.id !== topicId) {
+      return topic;
+    }
+
+    return {
+      ...topic,
+      subTopics: [
+        ...topic.subTopics,
+        {
+          id: `sub-${crypto.randomUUID()}`,
+          title,
+          questions: [],
+        },
+      ],
+    };
+  });
+
+  return clone(localSheet);
+}
+
+export async function updateSubTopic(topicId, subTopicId, changes) {
+  localSheet = localSheet.map((topic) => {
+    if (topic.id !== topicId) {
+      return topic;
+    }
+
+    return {
+      ...topic,
+      subTopics: topic.subTopics.map((subTopic) =>
+        subTopic.id === subTopicId
+          ? {
+              ...subTopic,
+              ...changes,
+            }
+          : subTopic,
+      ),
+    };
+  });
+
+  return clone(localSheet);
+}
+
+export async function deleteSubTopic(topicId, subTopicId) {
+  localSheet = localSheet.map((topic) => {
+    if (topic.id !== topicId) {
+      return topic;
+    }
+
+    return {
+      ...topic,
+      subTopics: topic.subTopics.filter(
+        (subTopic) => subTopic.id !== subTopicId,
+      ),
+    };
+  });
+
+  return clone(localSheet);
+}
+
+export async function createQuestion(topicId, subTopicId, data) {
+  localSheet = localSheet.map((topic) => {
+    if (topic.id !== topicId) {
+      return topic;
+    }
+
+    return {
+      ...topic,
+      subTopics: topic.subTopics.map((subTopic) => {
+        if (subTopic.id !== subTopicId) {
+          return subTopic;
+        }
+
+        return {
+          ...subTopic,
+          questions: [
+            ...subTopic.questions,
+            {
+              id: `question-${crypto.randomUUID()}`,
+              ...data,
+              leetcodeUrl: data.leetcodeUrl ?? data.url ?? "#",
+              youtubeUrl: data.youtubeUrl ?? null,
+            },
+          ],
+        };
+      }),
+    };
+  });
+
+  return clone(localSheet);
+}
+
+export async function updateQuestion(topicId, subTopicId, questionId, changes) {
+  localSheet = localSheet.map((topic) => {
+    if (topic.id !== topicId) {
+      return topic;
+    }
+
+    return {
+      ...topic,
+      subTopics: topic.subTopics.map((subTopic) => {
+        if (subTopic.id !== subTopicId) {
+          return subTopic;
+        }
+
+        return {
+          ...subTopic,
+          questions: subTopic.questions.map((question) =>
+            question.id === questionId
+              ? {
+                  ...question,
+                  ...changes,
+                }
+              : question,
+          ),
+        };
+      }),
+    };
+  });
+
+  return clone(localSheet);
+}
+
+export async function deleteQuestion(topicId, subTopicId, questionId) {
+  localSheet = localSheet.map((topic) => {
+    if (topic.id !== topicId) {
+      return topic;
+    }
+
+    return {
+      ...topic,
+      subTopics: topic.subTopics.map((subTopic) => {
+        if (subTopic.id !== subTopicId) {
+          return subTopic;
+        }
+
+        return {
+          ...subTopic,
+          questions: subTopic.questions.filter(
+            (question) => question.id !== questionId,
+          ),
+        };
+      }),
+    };
+  });
+
+  return clone(localSheet);
 }

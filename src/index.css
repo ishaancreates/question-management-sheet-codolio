@@ -1,2 +1,9 @@
 @import "tailwindcss";
 
+.sidebar-navigation {
+    scrollbar-width: none;
+}
+
+.sidebar-navigation::-webkit-scrollbar {
+    display: none;
+}
