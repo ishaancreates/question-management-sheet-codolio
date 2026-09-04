@@ -24,6 +24,7 @@ import {
   UserRound,
   Bell,
   SquarePlay,
+  Star,
   Menu,
   ChevronDown,
 } from "lucide-react";
@@ -49,6 +50,13 @@ export default function App() {
   const [modal, setModal] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [completedQuestions, setCompletedQuestions] = useState({});
+  const [starredQuestions, setStarredQuestions] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("question-sheet-starred") ?? "{}");
+    } catch {
+      return {};
+    }
+  });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [difficultyFilter, setDifficultyFilter] = useState("All");
   const [collapsedTopics, setCollapsedTopics] = useState({});
@@ -60,6 +68,23 @@ export default function App() {
       ...prev,
       [questionId]: !prev[questionId],
     }));
+  };
+
+  const toggleStarredQuestion = (questionId) => {
+    setStarredQuestions((previous) => {
+      const next = {
+        ...previous,
+        [questionId]: !previous[questionId],
+      };
+
+      try {
+        localStorage.setItem("question-sheet-starred", JSON.stringify(next));
+      } catch {
+        // Keep the in-memory state working if storage is unavailable.
+      }
+
+      return next;
+    });
   };
 
   const handleOnDragEnd = (result) => {
@@ -94,6 +119,11 @@ export default function App() {
       }
     }
   };
+
+  const [sheetTitle, setSheetTitle] = useState("Striver SDE Sheet");
+  const [sheetDescription, setSheetDescription] = useState(
+    "Practice problems organized by topic and sub-topic",
+  );
 
   const handleCreateTopic = async ({ title }) => {
     await addTopic(title);
@@ -381,19 +411,30 @@ export default function App() {
             {/* Sheet Info */}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="text-[17px] font-semibold text-[#f2f3f5]">
-                  Striver SDE Sheet
-                </h2>
+                <input
+                  type="text"
+                  value={sheetTitle}
+                  onChange={(e) => setSheetTitle(e.target.value)}
+                  placeholder="Sheet title"
+                  className="w-auto min-w-[180px] max-w-[400px] bg-transparent text-[17px] font-semibold text-[#f2f3f5] outline-none placeholder:text-[#5c5e68]"
+                />
+
                 <span className="rounded-full border border-[#ff7100]/25 bg-[#ff7100]/10 px-2.5 py-0.5 text-[10px] font-medium text-white">
                   {topics.length} Topics
                 </span>
+
                 <span className="rounded-full border border-[#1f2128] bg-[#121317] px-2.5 py-0.5 text-[10px] font-medium text-[#8b8d96]">
                   {totalQuestions} Questions
                 </span>
               </div>
-              <p className="mt-1 text-[11.5px] text-[#5c5e68]">
-                Practice problems organized by topic and sub-topic
-              </p>
+
+              <input
+                type="text"
+                value={sheetDescription}
+                onChange={(e) => setSheetDescription(e.target.value)}
+                placeholder="Add a description..."
+                className="mt-1 w-full max-w-[600px] bg-transparent text-[11.5px] text-[#8b8d96] outline-none placeholder:text-[#5c5e68]"
+              />
             </div>
 
             {/* Search + Filters */}
@@ -664,7 +705,7 @@ export default function App() {
                                                                 provided.innerRef
                                                               }
                                                               {...provided.draggableProps}
-                                                              className="group flex min-h-[42px] items-center justify-between rounded-xl border border-transparent px-2.5 hover:border-[#1f2128] hover:bg-[#121317]"
+                                                              className="group flex min-h-[42px] items-center justify-between rounded-xl border border-transparent px-1.5 hover:border-[#1f2128] hover:bg-[#121317] sm:px-2.5"
                                                             >
                                                               <div className="flex min-w-0 items-center gap-2.5">
                                                                 <span
@@ -756,9 +797,9 @@ export default function App() {
                                                                 )}
                                                               </div>
 
-                                                              <div className="ml-3 flex shrink-0 items-center gap-2">
+                                                              <div className="ml-1 flex shrink-0 items-center gap-1 sm:ml-3 sm:gap-2">
                                                                 <span
-                                                                  className={`rounded-full px-2.5 py-0.5 text-[9.5px] font-medium ${
+                                                                  className={`rounded-full px-1.5 py-0.5 text-[9.5px] font-medium sm:px-2.5 ${
                                                                     q.difficulty ===
                                                                     "Easy"
                                                                       ? "bg-[#0f2e22] text-[#3ddc97]"
@@ -770,6 +811,41 @@ export default function App() {
                                                                 >
                                                                   {q.difficulty}
                                                                 </span>
+
+                                                                <button
+                                                                  type="button"
+                                                                  onClick={() =>
+                                                                    toggleStarredQuestion(
+                                                                      q.id,
+                                                                    )
+                                                                  }
+                                                                  className={`hidden rounded-full p-1 transition hover:bg-[#332a10] sm:inline-flex ${starredQuestions[q.id] ? "text-[#e8b23d]" : "text-[#4a4c54] hover:text-[#e8b23d]"}`}
+                                                                  aria-label={
+                                                                    starredQuestions[
+                                                                      q.id
+                                                                    ]
+                                                                      ? `Remove ${q.title} from starred questions`
+                                                                      : `Star ${q.title}`
+                                                                  }
+                                                                  title={
+                                                                    starredQuestions[
+                                                                      q.id
+                                                                    ]
+                                                                      ? "Unstar question"
+                                                                      : "Star question"
+                                                                  }
+                                                                >
+                                                                  <Star
+                                                                    size={13}
+                                                                    fill={
+                                                                      starredQuestions[
+                                                                        q.id
+                                                                      ]
+                                                                        ? "currentColor"
+                                                                        : "none"
+                                                                    }
+                                                                  />
+                                                                </button>
 
                                                                 <button
                                                                   onClick={() =>
