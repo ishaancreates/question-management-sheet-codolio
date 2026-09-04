@@ -660,7 +660,7 @@ export default function App() {
                                                   q.id,
                                                 )
                                               }
-                                              className="rounded-full p-1 text-[#4a4c54] opacity-0 transition group-hover:opacity-100 hover:bg-[#2a1418] hover:text-[#f2687a]"
+                                              className="rounded-full p-1 text-[#4a4c54] opacity-50 transition group-hover:opacity-100 hover:bg-[#2a1418] hover:text-[#f2687a]"
                                               aria-label={`Delete ${q.title}`}
                                               title="Delete question"
                                             >
