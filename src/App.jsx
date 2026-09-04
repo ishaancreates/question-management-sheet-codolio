@@ -293,9 +293,9 @@ export default function App() {
         className={`transition-[padding] duration-200 ${sidebarOpen ? "lg:pl-[220px]" : "lg:pl-0"}`}
       >
         {/* Top Navbar */}
-        <header className="sticky top-0 z-30 h-[60px] border-b border-[#1a1c22] bg-[#0a0b0e]/95 backdrop-blur">
-          <div className="flex h-full items-center justify-between px-5 lg:px-7">
-            <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 min-h-[60px] border-b border-[#1a1c22] bg-[#0a0b0e]/95 backdrop-blur">
+          <div className="flex min-h-[60px] items-center justify-between gap-3 px-4 sm:px-5 lg:px-7">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               <button
                 onClick={() => setSidebarOpen((open) => !open)}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#1f2128] bg-[#121317] text-[#8b8d96] transition hover:border-[#2a2d36] hover:text-[#e8e9ec]"
@@ -304,22 +304,22 @@ export default function App() {
               >
                 <Menu size={16} />
               </button>
-              <h1 className="text-[15px] font-semibold text-[#f2f3f5]">
+              <h1 className="truncate text-[15px] font-semibold text-[#f2f3f5]">
                 Question Tracker Sheet
               </h1>
-              <p className="mt-0.5 text-[10.5px] text-[#5c5e68]">
-                Organize and track your coding preparation
+              <p className="mt-0.5 hidden text-[10.5px] text-[#5c5e68] md:block md:whitespace-nowrap">
+                This masterpiece was made by Ishaan Pandey
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <button className="hidden h-9 w-9 items-center justify-center rounded-full border border-[#1f2128] bg-[#121317] text-[#8b8d96] transition hover:border-[#2a2d36] hover:text-[#e8e9ec] sm:flex">
                 <Bell size={15} />
               </button>
 
               <button
                 onClick={() => setModal({ kind: "topic" })}
-                className="flex items-center gap-1.5 rounded-full bg-[#ff7100] px-4 py-2 text-[12px] font-semibold text-[#06110d] shadow-[0_0_0_1px_rgba(0,211,167,0.3)] transition hover:bg-[#1fe0b8] active:scale-[0.97]"
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#ff7100] px-3 py-2 text-[12px] font-semibold text-[#06110d] shadow-[0_0_0_1px_rgba(0,211,167,0.3)] transition hover:bg-[#1fe0b8] active:scale-[0.97] sm:px-4"
               >
                 <Plus size={14} strokeWidth={2.5} />
                 Add Topic
@@ -563,12 +563,12 @@ export default function App() {
                                         <div
                                           ref={provided.innerRef}
                                           {...provided.draggableProps}
-                                          className="group flex min-h-[42px] items-center justify-between rounded-xl border border-transparent px-2.5 transition hover:border-[#1f2128] hover:bg-[#121317]"
+                                          className="group flex min-h-[42px] items-center justify-between rounded-xl border border-transparent px-2.5 hover:border-[#1f2128] hover:bg-[#121317]"
                                         >
                                           <div className="flex min-w-0 items-center gap-2.5">
                                             <span
                                               {...provided.dragHandleProps}
-                                              className="cursor-grab text-[#3d3f47] opacity-0 transition group-hover:opacity-100"
+                                              className="cursor-grab text-[#3d3f47] transition"
                                             >
                                               <GripVertical size={14} />
                                             </span>
