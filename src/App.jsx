@@ -70,9 +70,20 @@ export default function App() {
     }
   };
 
+  const handleCreateTopic = async ({ title }) => {
+    await addTopic(title);
+    setModal(null);
+  };
+
+  const handleCreateSubTopic = async ({ title }) => {
+    await addSubTopic(modal.topicId, title);
+    setModal(null);
+  };
+
   const filteredTopics = topics
     .map((topic) => {
       const query = searchQuery.trim().toLowerCase();
+      const isFiltering = query.length > 0 || difficultyFilter !== "All";
       const topicMatches = topic.title.toLowerCase().includes(query);
 
       const filteredSubTopics = topic.subTopics
@@ -88,11 +99,16 @@ export default function App() {
             (question) => question.title.toLowerCase().includes(query),
           );
 
-          if (topicMatches || subTopicMatches || filteredQuestions.length > 0) {
+          if (
+            !isFiltering ||
+            topicMatches ||
+            subTopicMatches ||
+            filteredQuestions.length > 0
+          ) {
             return {
               ...subTopic,
               questions:
-                topicMatches || subTopicMatches
+                !isFiltering || topicMatches || subTopicMatches
                   ? matchingDifficultyQuestions
                   : filteredQuestions,
             };
@@ -100,12 +116,16 @@ export default function App() {
 
           return null;
         })
-        .filter((subTopic) => subTopic && subTopic.questions.length > 0)
+        .filter(
+          (subTopic) =>
+            subTopic && (!isFiltering || subTopic.questions.length > 0),
+        )
         .filter(Boolean);
 
       if (
-        (topicMatches || filteredSubTopics.length > 0) &&
-        filteredSubTopics.some((subTopic) => subTopic.questions.length > 0)
+        !isFiltering ||
+        ((topicMatches || filteredSubTopics.length > 0) &&
+          filteredSubTopics.some((subTopic) => subTopic.questions.length > 0))
       ) {
         return {
           ...topic,
@@ -318,6 +338,7 @@ export default function App() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setModal({ kind: "topic" })}
                 className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#ff7100] px-3 py-2 text-[12px] font-semibold text-[#06110d] shadow-[0_0_0_1px_rgba(0,211,167,0.3)] transition hover:bg-[#1fe0b8] active:scale-[0.97] sm:px-4"
               >
@@ -451,6 +472,7 @@ export default function App() {
 
                       <div className="flex shrink-0 items-center gap-1">
                         <button
+                          type="button"
                           onClick={() =>
                             setCollapsedTopics((previous) => ({
                               ...previous,
@@ -710,10 +732,7 @@ export default function App() {
             },
           ]}
           onClose={() => setModal(null)}
-          onSubmit={({ title }) => {
-            addTopic(title);
-            setModal(null);
-          }}
+          onSubmit={handleCreateTopic}
         />
       )}
 
@@ -728,10 +747,7 @@ export default function App() {
             },
           ]}
           onClose={() => setModal(null)}
-          onSubmit={({ title }) => {
-            addSubTopic(modal.topicId, title);
-            setModal(null);
-          }}
+          onSubmit={handleCreateSubTopic}
         />
       )}
 
