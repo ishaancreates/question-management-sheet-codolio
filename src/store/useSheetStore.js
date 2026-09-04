@@ -7,6 +7,8 @@ import {
   deleteSubTopic,
   deleteTopic,
   reorderQuestions,
+  reorderSubTopics,
+  reorderTopics,
   updateQuestion,
   updateSubTopic,
   updateTopic,
@@ -44,6 +46,16 @@ const useSheetStore = create((set) => ({
   reorderQuestions: async (topicId, subTopicId, startIndex, endIndex) =>
     set({
       topics: await reorderQuestions(topicId, subTopicId, startIndex, endIndex),
+    }),
+  reorderTopics: async (sourceTopicId, destinationTopicId) =>
+    set({ topics: await reorderTopics(sourceTopicId, destinationTopicId) }),
+  reorderSubTopics: async (topicId, sourceSubTopicId, destinationSubTopicId) =>
+    set({
+      topics: await reorderSubTopics(
+        topicId,
+        sourceSubTopicId,
+        destinationSubTopicId,
+      ),
     }),
 }));
 

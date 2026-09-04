@@ -372,3 +372,57 @@ export async function reorderQuestions(
 
   return saveSheet();
 }
+
+export async function reorderTopics(sourceTopicId, destinationTopicId) {
+  const sourceIndex = localSheet.findIndex(
+    (topic) => topic.id === sourceTopicId,
+  );
+  const destinationIndex = localSheet.findIndex(
+    (topic) => topic.id === destinationTopicId,
+  );
+
+  if (sourceIndex === -1 || destinationIndex === -1) {
+    return clone(localSheet);
+  }
+
+  const topics = [...localSheet];
+  const [movedTopic] = topics.splice(sourceIndex, 1);
+  topics.splice(destinationIndex, 0, movedTopic);
+  localSheet = topics;
+
+  return saveSheet();
+}
+
+export async function reorderSubTopics(
+  topicId,
+  sourceSubTopicId,
+  destinationSubTopicId,
+) {
+  localSheet = localSheet.map((topic) => {
+    if (topic.id !== topicId) {
+      return topic;
+    }
+
+    const sourceIndex = topic.subTopics.findIndex(
+      (subTopic) => subTopic.id === sourceSubTopicId,
+    );
+    const destinationIndex = topic.subTopics.findIndex(
+      (subTopic) => subTopic.id === destinationSubTopicId,
+    );
+
+    if (sourceIndex === -1 || destinationIndex === -1) {
+      return topic;
+    }
+
+    const subTopics = [...topic.subTopics];
+    const [movedSubTopic] = subTopics.splice(sourceIndex, 1);
+    subTopics.splice(destinationIndex, 0, movedSubTopic);
+
+    return {
+      ...topic,
+      subTopics,
+    };
+  });
+
+  return saveSheet();
+}

@@ -42,6 +42,8 @@ export default function App() {
     deleteSubTopic,
     deleteQuestion,
     reorderQuestions,
+    reorderSubTopics,
+    reorderTopics,
     setTopics,
   } = useSheetStore();
   const [modal, setModal] = useState(null);
@@ -67,6 +69,29 @@ export default function App() {
     if (type === "QUESTION") {
       const [topicId, subTopicId] = source.droppableId.split("::");
       reorderQuestions(topicId, subTopicId, source.index, destination.index);
+      return;
+    }
+
+    if (type === "TOPIC") {
+      const sourceTopic = filteredTopics[source.index];
+      const destinationTopic = filteredTopics[destination.index];
+
+      if (sourceTopic && destinationTopic) {
+        reorderTopics(sourceTopic.id, destinationTopic.id);
+      }
+      return;
+    }
+
+    if (type === "SUBTOPIC" && source.droppableId === destination.droppableId) {
+      const topic = filteredTopics.find(
+        (item) => item.id === source.droppableId,
+      );
+      const sourceSubTopic = topic?.subTopics[source.index];
+      const destinationSubTopic = topic?.subTopics[destination.index];
+
+      if (sourceSubTopic && destinationSubTopic) {
+        reorderSubTopics(topic.id, sourceSubTopic.id, destinationSubTopic.id);
+      }
     }
   };
 
@@ -418,304 +443,393 @@ export default function App() {
 
           {/* Topics */}
           <DragDropContext onDragEnd={handleOnDragEnd}>
-            <div className="space-y-3.5">
-              {filteredTopics.map((topic) => {
-                const topicQuestionCount = topic.subTopics.reduce(
-                  (total, sub) => total + sub.questions.length,
-                  0,
-                );
+            <Droppable droppableId="TOPICS" type="TOPIC">
+              {(topicDropProvided) => (
+                <div
+                  {...topicDropProvided.droppableProps}
+                  ref={topicDropProvided.innerRef}
+                  className="space-y-3.5"
+                >
+                  {filteredTopics.map((topic, topicIndex) => {
+                    const topicQuestionCount = topic.subTopics.reduce(
+                      (total, sub) => total + sub.questions.length,
+                      0,
+                    );
 
-                const completedCount = topic.subTopics.reduce(
-                  (total, sub) =>
-                    total +
-                    sub.questions.filter((q) => completedQuestions[q.id])
-                      .length,
-                  0,
-                );
+                    const completedCount = topic.subTopics.reduce(
+                      (total, sub) =>
+                        total +
+                        sub.questions.filter((q) => completedQuestions[q.id])
+                          .length,
+                      0,
+                    );
 
-                const progress =
-                  topicQuestionCount > 0
-                    ? Math.round((completedCount / topicQuestionCount) * 100)
-                    : 0;
+                    const progress =
+                      topicQuestionCount > 0
+                        ? Math.round(
+                            (completedCount / topicQuestionCount) * 100,
+                          )
+                        : 0;
 
-                return (
-                  <div
-                    key={topic.id}
-                    className="overflow-hidden rounded-2xl border border-[#1a1c22] bg-[#0d0e12]"
-                  >
-                    {/* Topic Header */}
-                    <div className="flex items-center justify-between gap-4 border-b border-[#1a1c22] px-4 py-3.5">
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <div>
-                          <h2 className="text-[13.5px] font-semibold text-[#e8e9ec]">
-                            {topic.title}
-                          </h2>
-                          <p className="mt-0.5 text-[10.5px] text-[#5c5e68]">
-                            {topicQuestionCount} questions
-                          </p>
-                        </div>
-
-                        {/* progress bar */}
-                        <div className="ml-2 hidden items-center gap-2 sm:flex">
-                          <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[#181a20]">
-                            <div
-                              className="h-full rounded-full bg-[#ff7100] transition-all duration-300"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-
-                          <span className="min-w-[32px] text-[10px] font-medium text-[#5c5e68]">
-                            {progress}%
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCollapsedTopics((previous) => ({
-                              ...previous,
-                              [topic.id]: !previous[topic.id],
-                            }))
-                          }
-                          className="rounded-full p-2 text-[#5c5e68] transition hover:bg-[#121317] hover:text-[#e8e9ec]"
-                          aria-label={
-                            collapsedTopics[topic.id]
-                              ? `Expand ${topic.title}`
-                              : `Minimize ${topic.title}`
-                          }
-                          title={
-                            collapsedTopics[topic.id]
-                              ? "Expand topic"
-                              : "Minimize topic"
-                          }
-                        >
-                          <ChevronDown
-                            size={14}
-                            className={`transition-transform ${collapsedTopics[topic.id] ? "-rotate-90" : ""}`}
-                          />
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            setModal({ kind: "subtopic", topicId: topic.id })
-                          }
-                          className="flex items-center gap-1.5 rounded-full border border-[#1f2128] bg-[#121317] px-3 py-1.5 text-[10.5px] font-medium text-[#ff7100] transition hover:border-[#ff7100]/40 hover:bg-[#ff7100]/10"
-                        >
-                          <Plus size={12} />
-                          Sub-topic
-                        </button>
-
-                        <button
-                          onClick={() => deleteTopic(topic.id)}
-                          className="rounded-full p-2 text-[#5c5e68] transition hover:bg-[#2a1418] hover:text-[#f2687a]"
-                          title="Delete topic"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Subtopics */}
-                    {!collapsedTopics[topic.id] && (
-                      <div className="divide-y divide-[#161820]">
-                        {topic.subTopics.map((subTopic) => (
-                          <div key={subTopic.id}>
-                            {/* Subtopic header */}
-                            <div className="flex items-center justify-between px-4 py-2.5">
-                              <div className="flex items-center gap-2">
-                                <ChevronRight
-                                  size={13}
-                                  className="text-[#5c5e68]"
-                                />
-                                <h3 className="text-[11.5px] font-medium text-[#b0b2ba]">
-                                  {subTopic.title}
-                                </h3>
-                                <span className="rounded-full bg-[#161820] px-2 py-0.5 text-[9.5px] text-[#6a6d78]">
-                                  {subTopic.questions.length}
+                    return (
+                      <Draggable
+                        key={topic.id}
+                        draggableId={topic.id}
+                        index={topicIndex}
+                      >
+                        {(topicProvided) => (
+                          <div
+                            ref={topicProvided.innerRef}
+                            {...topicProvided.draggableProps}
+                            className="overflow-hidden rounded-2xl border border-[#1a1c22] bg-[#0d0e12]"
+                          >
+                            {/* Topic Header */}
+                            <div className="flex items-center justify-between gap-4 border-b border-[#1a1c22] px-4 py-3.5">
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <span
+                                  {...topicProvided.dragHandleProps}
+                                  className="cursor-grab text-[#3d3f47]"
+                                  title="Drag topic"
+                                >
+                                  <GripVertical size={15} />
                                 </span>
+                                <div>
+                                  <h2 className="text-[13.5px] font-semibold text-[#e8e9ec]">
+                                    {topic.title}
+                                  </h2>
+                                  <p className="mt-0.5 text-[10.5px] text-[#5c5e68]">
+                                    {topicQuestionCount} questions
+                                  </p>
+                                </div>
+
+                                {/* progress bar */}
+                                <div className="ml-2 hidden items-center gap-2 sm:flex">
+                                  <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[#181a20]">
+                                    <div
+                                      className="h-full rounded-full bg-[#ff7100] transition-all duration-300"
+                                      style={{ width: `${progress}%` }}
+                                    />
+                                  </div>
+
+                                  <span className="min-w-[32px] text-[10px] font-medium text-[#5c5e68]">
+                                    {progress}%
+                                  </span>
+                                </div>
                               </div>
 
-                              <div className="flex items-center gap-1">
+                              <div className="flex shrink-0 items-center gap-1">
                                 <button
+                                  type="button"
                                   onClick={() =>
-                                    setModal({
-                                      kind: "question",
-                                      topicId: topic.id,
-                                      subTopicId: subTopic.id,
-                                    })
+                                    setCollapsedTopics((previous) => ({
+                                      ...previous,
+                                      [topic.id]: !previous[topic.id],
+                                    }))
                                   }
-                                  className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium text-[#ff7100] transition hover:bg-[#ff7100]/10"
+                                  className="rounded-full p-2 text-[#5c5e68] transition hover:bg-[#121317] hover:text-[#e8e9ec]"
+                                  aria-label={
+                                    collapsedTopics[topic.id]
+                                      ? `Expand ${topic.title}`
+                                      : `Minimize ${topic.title}`
+                                  }
+                                  title={
+                                    collapsedTopics[topic.id]
+                                      ? "Expand topic"
+                                      : "Minimize topic"
+                                  }
                                 >
-                                  <Plus size={11} />
-                                  Add
+                                  <ChevronDown
+                                    size={14}
+                                    className={`transition-transform ${collapsedTopics[topic.id] ? "-rotate-90" : ""}`}
+                                  />
                                 </button>
 
                                 <button
                                   onClick={() =>
-                                    deleteSubTopic(topic.id, subTopic.id)
+                                    setModal({
+                                      kind: "subtopic",
+                                      topicId: topic.id,
+                                    })
                                   }
-                                  className="rounded-full p-1.5 text-[#565962] transition hover:bg-[#2a1418] hover:text-[#f2687a]"
-                                  title="Delete sub-topic"
+                                  className="flex items-center gap-1.5 rounded-full border border-[#1f2128] bg-[#121317] px-3 py-1.5 text-[10.5px] font-medium text-[#ff7100] transition hover:border-[#ff7100]/40 hover:bg-[#ff7100]/10"
                                 >
-                                  <Trash2 size={12} />
+                                  <Plus size={12} />
+                                  Sub-topic
+                                </button>
+
+                                <button
+                                  onClick={() => deleteTopic(topic.id)}
+                                  className="rounded-full p-2 text-[#5c5e68] transition hover:bg-[#2a1418] hover:text-[#f2687a]"
+                                  title="Delete topic"
+                                >
+                                  <Trash2 size={14} />
                                 </button>
                               </div>
                             </div>
 
-                            {/* Questions */}
-                            <Droppable
-                              droppableId={`${topic.id}::${subTopic.id}`}
-                              type="QUESTION"
-                            >
-                              {(provided) => (
-                                <div
-                                  {...provided.droppableProps}
-                                  ref={provided.innerRef}
-                                  className="px-3 pb-3"
-                                >
-                                  {subTopic.questions.map((q, index) => (
-                                    <Draggable
-                                      key={q.id}
-                                      draggableId={q.id}
-                                      index={index}
-                                    >
-                                      {(provided) => (
-                                        <div
-                                          ref={provided.innerRef}
-                                          {...provided.draggableProps}
-                                          className="group flex min-h-[42px] items-center justify-between rounded-xl border border-transparent px-2.5 hover:border-[#1f2128] hover:bg-[#121317]"
+                            {/* Subtopics */}
+                            {!collapsedTopics[topic.id] && (
+                              <Droppable droppableId={topic.id} type="SUBTOPIC">
+                                {(subTopicDropProvided) => (
+                                  <div
+                                    {...subTopicDropProvided.droppableProps}
+                                    ref={subTopicDropProvided.innerRef}
+                                    className="divide-y divide-[#161820]"
+                                  >
+                                    {topic.subTopics.map(
+                                      (subTopic, subTopicIndex) => (
+                                        <Draggable
+                                          key={subTopic.id}
+                                          draggableId={subTopic.id}
+                                          index={subTopicIndex}
                                         >
-                                          <div className="flex min-w-0 items-center gap-2.5">
-                                            <span
-                                              {...provided.dragHandleProps}
-                                              className="cursor-grab text-[#3d3f47] transition"
+                                          {(subTopicProvided) => (
+                                            <div
+                                              ref={subTopicProvided.innerRef}
+                                              {...subTopicProvided.draggableProps}
                                             >
-                                              <GripVertical size={14} />
-                                            </span>
+                                              {/* Subtopic header */}
+                                              <div className="flex items-center justify-between px-4 py-2.5">
+                                                <div className="flex items-center gap-2">
+                                                  <span
+                                                    {...subTopicProvided.dragHandleProps}
+                                                    className="cursor-grab text-[#3d3f47]"
+                                                    title="Drag subtopic"
+                                                  >
+                                                    <GripVertical size={14} />
+                                                  </span>
+                                                  <ChevronRight
+                                                    size={13}
+                                                    className="text-[#5c5e68]"
+                                                  />
+                                                  <h3 className="text-[11.5px] font-medium text-[#b0b2ba]">
+                                                    {subTopic.title}
+                                                  </h3>
+                                                  <span className="rounded-full bg-[#161820] px-2 py-0.5 text-[9.5px] text-[#6a6d78]">
+                                                    {subTopic.questions.length}
+                                                  </span>
+                                                </div>
 
-                                            {/* solved indicator */}
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                toggleQuestion(q.id)
-                                              }
-                                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition ${
-                                                completedQuestions[q.id]
-                                                  ? "border-[#ff7100] bg-[#ff7100] text-[#06110d]"
-                                                  : "border-[#2a2d36] bg-[#121317] group-hover:border-[#ff7100]/50"
-                                              }`}
-                                              aria-label={
-                                                completedQuestions[q.id]
-                                                  ? `Mark ${q.title} as unsolved`
-                                                  : `Mark ${q.title} as solved`
-                                              }
-                                            >
-                                              {completedQuestions[q.id] && (
-                                                <svg
-                                                  viewBox="0 0 12 12"
-                                                  className="h-3 w-3"
-                                                  fill="none"
-                                                  stroke="currentColor"
-                                                  strokeWidth="2"
-                                                >
-                                                  <path d="M2.5 6l2.2 2.2L9.5 3.5" />
-                                                </svg>
-                                              )}
-                                            </button>
-                                            <a
-                                              href={
-                                                q.leetcodeUrl ?? q.url ?? "#"
-                                              }
-                                              target="_blank"
-                                              rel="noreferrer"
-                                              className="flex min-w-0 items-center gap-1.5 truncate text-[12px] font-medium text-[#c7c9d0] transition hover:text-[#ff7100]"
-                                            >
-                                              <span
-                                                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] bg-[#ffa116] text-[8px] font-bold text-[#0a0b0e]"
-                                                title="Open LeetCode problem"
+                                                <div className="flex items-center gap-1">
+                                                  <button
+                                                    onClick={() =>
+                                                      setModal({
+                                                        kind: "question",
+                                                        topicId: topic.id,
+                                                        subTopicId: subTopic.id,
+                                                      })
+                                                    }
+                                                    className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium text-[#ff7100] transition hover:bg-[#ff7100]/10"
+                                                  >
+                                                    <Plus size={11} />
+                                                    Add
+                                                  </button>
+
+                                                  <button
+                                                    onClick={() =>
+                                                      deleteSubTopic(
+                                                        topic.id,
+                                                        subTopic.id,
+                                                      )
+                                                    }
+                                                    className="rounded-full p-1.5 text-[#565962] transition hover:bg-[#2a1418] hover:text-[#f2687a]"
+                                                    title="Delete sub-topic"
+                                                  >
+                                                    <Trash2 size={12} />
+                                                  </button>
+                                                </div>
+                                              </div>
+
+                                              {/* Questions */}
+                                              <Droppable
+                                                droppableId={`${topic.id}::${subTopic.id}`}
+                                                type="QUESTION"
                                               >
-                                                LC
-                                              </span>
-                                              <span className="truncate">
-                                                {q.title}
-                                              </span>
-                                              <ExternalLink
-                                                size={10}
-                                                className="shrink-0 text-[#565962]"
-                                              />
-                                            </a>
+                                                {(provided) => (
+                                                  <div
+                                                    {...provided.droppableProps}
+                                                    ref={provided.innerRef}
+                                                    className="px-3 pb-3"
+                                                  >
+                                                    {subTopic.questions.map(
+                                                      (q, index) => (
+                                                        <Draggable
+                                                          key={q.id}
+                                                          draggableId={q.id}
+                                                          index={index}
+                                                        >
+                                                          {(provided) => (
+                                                            <div
+                                                              ref={
+                                                                provided.innerRef
+                                                              }
+                                                              {...provided.draggableProps}
+                                                              className="group flex min-h-[42px] items-center justify-between rounded-xl border border-transparent px-2.5 hover:border-[#1f2128] hover:bg-[#121317]"
+                                                            >
+                                                              <div className="flex min-w-0 items-center gap-2.5">
+                                                                <span
+                                                                  {...provided.dragHandleProps}
+                                                                  className="cursor-grab text-[#3d3f47] transition"
+                                                                >
+                                                                  <GripVertical
+                                                                    size={14}
+                                                                  />
+                                                                </span>
 
-                                            {q.youtubeUrl && (
-                                              <a
-                                                href={q.youtubeUrl}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="shrink-0 rounded p-1 text-[#ff4d5f] transition hover:bg-[#2a1418] hover:text-[#ff7180]"
-                                                aria-label={`Watch ${q.title} on YouTube`}
-                                                title="Watch solution on YouTube"
-                                              >
-                                                <SquarePlay size={14} />
-                                              </a>
-                                            )}
-                                          </div>
+                                                                {/* solved indicator */}
+                                                                <button
+                                                                  type="button"
+                                                                  onClick={() =>
+                                                                    toggleQuestion(
+                                                                      q.id,
+                                                                    )
+                                                                  }
+                                                                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition ${
+                                                                    completedQuestions[
+                                                                      q.id
+                                                                    ]
+                                                                      ? "border-[#ff7100] bg-[#ff7100] text-[#06110d]"
+                                                                      : "border-[#2a2d36] bg-[#121317] group-hover:border-[#ff7100]/50"
+                                                                  }`}
+                                                                  aria-label={
+                                                                    completedQuestions[
+                                                                      q.id
+                                                                    ]
+                                                                      ? `Mark ${q.title} as unsolved`
+                                                                      : `Mark ${q.title} as solved`
+                                                                  }
+                                                                >
+                                                                  {completedQuestions[
+                                                                    q.id
+                                                                  ] && (
+                                                                    <svg
+                                                                      viewBox="0 0 12 12"
+                                                                      className="h-3 w-3"
+                                                                      fill="none"
+                                                                      stroke="currentColor"
+                                                                      strokeWidth="2"
+                                                                    >
+                                                                      <path d="M2.5 6l2.2 2.2L9.5 3.5" />
+                                                                    </svg>
+                                                                  )}
+                                                                </button>
+                                                                <a
+                                                                  href={
+                                                                    q.leetcodeUrl ??
+                                                                    q.url ??
+                                                                    "#"
+                                                                  }
+                                                                  target="_blank"
+                                                                  rel="noreferrer"
+                                                                  className="flex min-w-0 items-center gap-1.5 truncate text-[12px] font-medium text-[#c7c9d0] transition hover:text-[#ff7100]"
+                                                                >
+                                                                  <span
+                                                                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] bg-[#ffa116] text-[8px] font-bold text-[#0a0b0e]"
+                                                                    title="Open LeetCode problem"
+                                                                  >
+                                                                    LC
+                                                                  </span>
+                                                                  <span className="truncate">
+                                                                    {q.title}
+                                                                  </span>
+                                                                  <ExternalLink
+                                                                    size={10}
+                                                                    className="shrink-0 text-[#565962]"
+                                                                  />
+                                                                </a>
 
-                                          <div className="ml-3 flex shrink-0 items-center gap-2">
-                                            <span
-                                              className={`rounded-full px-2.5 py-0.5 text-[9.5px] font-medium ${
-                                                q.difficulty === "Easy"
-                                                  ? "bg-[#0f2e22] text-[#3ddc97]"
-                                                  : q.difficulty === "Medium"
-                                                    ? "bg-[#332a10] text-[#e8b23d]"
-                                                    : "bg-[#331416] text-[#f2687a]"
-                                              }`}
-                                            >
-                                              {q.difficulty}
-                                            </span>
+                                                                {q.youtubeUrl && (
+                                                                  <a
+                                                                    href={
+                                                                      q.youtubeUrl
+                                                                    }
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="shrink-0 rounded p-1 text-[#ff4d5f] transition hover:bg-[#2a1418] hover:text-[#ff7180]"
+                                                                    aria-label={`Watch ${q.title} on YouTube`}
+                                                                    title="Watch solution on YouTube"
+                                                                  >
+                                                                    <SquarePlay
+                                                                      size={14}
+                                                                    />
+                                                                  </a>
+                                                                )}
+                                                              </div>
 
-                                            <button
-                                              onClick={() =>
-                                                deleteQuestion(
-                                                  topic.id,
-                                                  subTopic.id,
-                                                  q.id,
-                                                )
-                                              }
-                                              className="rounded-full p-1 text-[#4a4c54] opacity-50 transition group-hover:opacity-100 hover:bg-[#2a1418] hover:text-[#f2687a]"
-                                              aria-label={`Delete ${q.title}`}
-                                              title="Delete question"
-                                            >
-                                              <Trash2 size={12} />
-                                            </button>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </Draggable>
-                                  ))}
-                                  {provided.placeholder}
-                                </div>
-                              )}
-                            </Droppable>
+                                                              <div className="ml-3 flex shrink-0 items-center gap-2">
+                                                                <span
+                                                                  className={`rounded-full px-2.5 py-0.5 text-[9.5px] font-medium ${
+                                                                    q.difficulty ===
+                                                                    "Easy"
+                                                                      ? "bg-[#0f2e22] text-[#3ddc97]"
+                                                                      : q.difficulty ===
+                                                                          "Medium"
+                                                                        ? "bg-[#332a10] text-[#e8b23d]"
+                                                                        : "bg-[#331416] text-[#f2687a]"
+                                                                  }`}
+                                                                >
+                                                                  {q.difficulty}
+                                                                </span>
+
+                                                                <button
+                                                                  onClick={() =>
+                                                                    deleteQuestion(
+                                                                      topic.id,
+                                                                      subTopic.id,
+                                                                      q.id,
+                                                                    )
+                                                                  }
+                                                                  className="rounded-full p-1 text-[#4a4c54] opacity-50 transition group-hover:opacity-100 hover:bg-[#2a1418] hover:text-[#f2687a]"
+                                                                  aria-label={`Delete ${q.title}`}
+                                                                  title="Delete question"
+                                                                >
+                                                                  <Trash2
+                                                                    size={12}
+                                                                  />
+                                                                </button>
+                                                              </div>
+                                                            </div>
+                                                          )}
+                                                        </Draggable>
+                                                      ),
+                                                    )}
+                                                    {provided.placeholder}
+                                                  </div>
+                                                )}
+                                              </Droppable>
+                                            </div>
+                                          )}
+                                        </Draggable>
+                                      ),
+                                    )}
+                                    {subTopicDropProvided.placeholder}
+
+                                    {/* Add subtopic */}
+                                    <button
+                                      onClick={() =>
+                                        setModal({
+                                          kind: "subtopic",
+                                          topicId: topic.id,
+                                        })
+                                      }
+                                      className="flex w-full items-center gap-2 px-5 py-3 text-[10.5px] font-medium text-[#565962] transition hover:bg-[#121317] hover:text-[#ff7100]"
+                                    >
+                                      <Plus size={12} />
+                                      Add Sub-topic
+                                    </button>
+                                  </div>
+                                )}
+                              </Droppable>
+                            )}
                           </div>
-                        ))}
-
-                        {/* Add subtopic */}
-                        <button
-                          onClick={() =>
-                            setModal({ kind: "subtopic", topicId: topic.id })
-                          }
-                          className="flex w-full items-center gap-2 px-5 py-3 text-[10.5px] font-medium text-[#565962] transition hover:bg-[#121317] hover:text-[#ff7100]"
-                        >
-                          <Plus size={12} />
-                          Add Sub-topic
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                  {topicDropProvided.placeholder}
+                </div>
+              )}
+            </Droppable>
           </DragDropContext>
         </main>
       </div>
