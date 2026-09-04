@@ -1,4 +1,5 @@
 const SHEET_URL = import.meta.env.VITE_SHEET_API_URL;
+const STORAGE_KEY = "question-sheet-data";
 
 const fallbackSheet = [
   {
@@ -27,7 +28,30 @@ const fallbackSheet = [
   },
 ];
 
-let localSheet = structuredClone(fallbackSheet);
+function readStoredSheet() {
+  try {
+    const storedSheet = localStorage.getItem(STORAGE_KEY);
+    return storedSheet ? JSON.parse(storedSheet) : null;
+  } catch (error) {
+    console.error("Failed to read saved sheet:", error);
+    return null;
+  }
+}
+
+function saveSheet() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(localSheet));
+  } catch (error) {
+    console.error("Failed to save sheet:", error);
+  }
+
+  return clone(localSheet);
+}
+
+const storedSheet = readStoredSheet();
+let localSheet = Array.isArray(storedSheet)
+  ? storedSheet
+  : structuredClone(fallbackSheet);
 
 const clone = (value) => structuredClone(value);
 
@@ -107,6 +131,10 @@ function normalizeRemoteSheet(payload) {
 }
 
 export default async function fetchSheet() {
+  if (Array.isArray(storedSheet)) {
+    return clone(localSheet);
+  }
+
   try {
     const response = await fetch(SHEET_URL);
 
@@ -122,25 +150,25 @@ export default async function fetchSheet() {
       localSheet = remoteSheet;
     }
 
-    return clone(localSheet);
+    return saveSheet();
   } catch (error) {
     console.error("Failed to fetch sheet:", error);
 
-    return clone(localSheet);
+    return saveSheet();
   }
 }
 
 export async function createTopic(title) {
   localSheet = [
-    ...localSheet,
     {
       id: `topic-${crypto.randomUUID()}`,
       title,
       subTopics: [],
     },
+    ...localSheet,
   ];
 
-  return clone(localSheet);
+  return saveSheet();
 }
 
 export async function updateTopic(topicId, changes) {
@@ -153,13 +181,13 @@ export async function updateTopic(topicId, changes) {
       : topic,
   );
 
-  return clone(localSheet);
+  return saveSheet();
 }
 
 export async function deleteTopic(topicId) {
   localSheet = localSheet.filter((topic) => topic.id !== topicId);
 
-  return clone(localSheet);
+  return saveSheet();
 }
 
 export async function createSubTopic(topicId, title) {
@@ -171,17 +199,17 @@ export async function createSubTopic(topicId, title) {
     return {
       ...topic,
       subTopics: [
-        ...topic.subTopics,
         {
           id: `sub-${crypto.randomUUID()}`,
           title,
           questions: [],
         },
+        ...topic.subTopics,
       ],
     };
   });
 
-  return clone(localSheet);
+  return saveSheet();
 }
 
 export async function updateSubTopic(topicId, subTopicId, changes) {
@@ -203,7 +231,7 @@ export async function updateSubTopic(topicId, subTopicId, changes) {
     };
   });
 
-  return clone(localSheet);
+  return saveSheet();
 }
 
 export async function deleteSubTopic(topicId, subTopicId) {
@@ -220,7 +248,7 @@ export async function deleteSubTopic(topicId, subTopicId) {
     };
   });
 
-  return clone(localSheet);
+  return saveSheet();
 }
 
 export async function createQuestion(topicId, subTopicId, data) {
@@ -239,20 +267,20 @@ export async function createQuestion(topicId, subTopicId, data) {
         return {
           ...subTopic,
           questions: [
-            ...subTopic.questions,
             {
               id: `question-${crypto.randomUUID()}`,
               ...data,
               leetcodeUrl: data.leetcodeUrl ?? data.url ?? "#",
               youtubeUrl: data.youtubeUrl ?? null,
             },
+            ...subTopic.questions,
           ],
         };
       }),
     };
   });
 
-  return clone(localSheet);
+  return saveSheet();
 }
 
 export async function updateQuestion(topicId, subTopicId, questionId, changes) {
@@ -283,7 +311,7 @@ export async function updateQuestion(topicId, subTopicId, questionId, changes) {
     };
   });
 
-  return clone(localSheet);
+  return saveSheet();
 }
 
 export async function deleteQuestion(topicId, subTopicId, questionId) {
@@ -309,5 +337,38 @@ export async function deleteQuestion(topicId, subTopicId, questionId) {
     };
   });
 
-  return clone(localSheet);
+  return saveSheet();
+}
+
+export async function reorderQuestions(
+  topicId,
+  subTopicId,
+  startIndex,
+  endIndex,
+) {
+  localSheet = localSheet.map((topic) => {
+    if (topic.id !== topicId) {
+      return topic;
+    }
+
+    return {
+      ...topic,
+      subTopics: topic.subTopics.map((subTopic) => {
+        if (subTopic.id !== subTopicId) {
+          return subTopic;
+        }
+
+        const questions = [...subTopic.questions];
+        const [movedQuestion] = questions.splice(startIndex, 1);
+        questions.splice(endIndex, 0, movedQuestion);
+
+        return {
+          ...subTopic,
+          questions,
+        };
+      }),
+    };
+  });
+
+  return saveSheet();
 }

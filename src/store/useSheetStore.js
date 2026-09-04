@@ -6,12 +6,13 @@ import {
   deleteQuestion,
   deleteSubTopic,
   deleteTopic,
+  reorderQuestions,
   updateQuestion,
   updateSubTopic,
   updateTopic,
 } from "../services/api";
 
- const useSheetStore = create((set) => ({
+const useSheetStore = create((set) => ({
   topics: [],
   isLoading: false,
 
@@ -40,22 +41,10 @@ import {
     set({ topics: await deleteQuestion(topicId, subTopicId, questionId) }),
 
   // Reorder Handler
-  reorderQuestions: (topicId, subTopicId, startIndex, endIndex) =>
-    set((state) => ({
-      topics: state.topics.map((t) => {
-        if (t.id !== topicId) return t;
-        return {
-          ...t,
-          subTopics: t.subTopics.map((st) => {
-            if (st.id !== subTopicId) return st;
-            const result = Array.from(st.questions);
-            const [removed] = result.splice(startIndex, 1);
-            result.splice(endIndex, 0, removed);
-            return { ...st, questions: result };
-          }),
-        };
-      }),
-    })),
+  reorderQuestions: async (topicId, subTopicId, startIndex, endIndex) =>
+    set({
+      topics: await reorderQuestions(topicId, subTopicId, startIndex, endIndex),
+    }),
 }));
 
 export default useSheetStore;
